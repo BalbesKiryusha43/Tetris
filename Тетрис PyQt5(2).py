@@ -1,13 +1,122 @@
 import random
 import sys
-from PyQt5.QtCore import Qt, QBasicTimer, pyqtSignal
+from PyQt5.QtCore import Qt, QBasicTimer, pyqtSignal, QUrl, QTime
 from PyQt5.QtGui import QPainter, QColor, QFont, QPixmap
-from PyQt5.QtWidgets import QMainWindow, QFrame, QDesktopWidget, QApplication, QHBoxLayout, QSizePolicy, QWidget, QPushButton, QGridLayout, QMessageBox
+from PyQt5.QtMultimedia import QSound, QMediaPlayer, QMediaContent
+from PyQt5.QtWidgets import QMainWindow, QFrame, QDesktopWidget, QApplication, QHBoxLayout, QSizePolicy, QWidget, \
+    QPushButton, QGridLayout, QMessageBox, QLabel
+
+class MainMenu(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.centralwidget = QWidget(self)
+        self.gridLayout = QGridLayout(self.centralwidget)
+
+        # Создание QLabel для фона с изображением
+        self.backgroundLabel = QLabel(self.centralwidget)
+        pixmap = QPixmap("главное меню.png") 
+        self.backgroundLabel.setPixmap(pixmap)
+        self.backgroundLabel.setScaledContents(True)
+        self.gridLayout.addWidget(self.backgroundLabel, 0, 0, 10, 1)
+
+        # Надпись "Тетрис"
+        self.titleLabel = QLabel("Тетрис", self.centralwidget)
+        self.titleLabel.setFont(QFont('Times New Roman', 40))
+        self.titleLabel.setStyleSheet("color: white;")
+        self.titleLabel.setAlignment(Qt.AlignCenter)
+        self.gridLayout.addWidget(self.titleLabel, 1, 0, Qt.AlignCenter)
+
+        # Кнопка "Начать игру"
+        self.startButton = QPushButton("Начать игру", self.centralwidget)
+        self.startButton.setFont(QFont('Times New Roman', 24))
+        self.startButton.setStyleSheet("background-color: white; color: black;")
+        self.startButton.setFixedSize(300, 50)
+        self.startButton.clicked.connect(self.startGame)
+        self.gridLayout.addWidget(self.startButton, 7, 0, Qt.AlignCenter)
+
+        # Кнопка "Правила игры"
+        self.rulesButton = QPushButton("Правила игры", self.centralwidget)
+        self.rulesButton.setFont(QFont('Times New Roman', 24))
+        self.rulesButton.setStyleSheet("background-color: white; color: black;")
+        self.rulesButton.setFixedSize(300, 50)
+        self.rulesButton.clicked.connect(self.showRules)
+        self.gridLayout.addWidget(self.rulesButton, 8, 0, Qt.AlignCenter)
+
+        # Кнопка "Выход"
+        self.exitButton = QPushButton("Выход", self.centralwidget)
+        self.exitButton.setFont(QFont('Times New Roman', 24))
+        self.exitButton.setStyleSheet("background-color: white; color: black;")
+        self.exitButton.setFixedSize(300, 50)
+        self.exitButton.clicked.connect(self.exitGame)
+        self.gridLayout.addWidget(self.exitButton, 9, 0, Qt.AlignCenter)
+
+        self.setCentralWidget(self.centralwidget)
+        self.setWindowTitle('Тетрис')
+        self.resize(400, 300)
+        self.show()
+        self.center()  
+
+    def center(self):
+        frame_geometry = self.frameGeometry()
+        center_point = QDesktopWidget().availableGeometry().center()
+        frame_geometry.moveCenter(center_point)
+        self.move(frame_geometry.topLeft())
+
+    def startGame(self):
+        self.hide()
+        self.tetris = Tetris()
+        self.tetris.show()
+
+    def showRules(self):
+        rules = """
+    ==>Тетрис - игра, в которой нужно управлять падающими тетромино (геометрические фигуры, состоящие из четырех квадратных блоков). 
+    ==>Цель игры - заполнить горизонтальные линии на игровом поле без пропусков.
+    ==>Игровое поле представляет собой прямоугольную сетку размером 10 клеток в ширину и 20 клеток в высоту.
+    ==>Игроку предоставляется одна фигура за раз, которая падает сверху вниз по игровому полю.
+    ==>Фигуры состоят из четырех квадратных блоков, называемых тетронимо. Каждое тетронимо может иметь одну из семи форм.
+    ==>Игрок может перемещать фигуры влево и вправо, поворачивать их по часовой стрелке, а также ускорять их падение.
+    ==>Когда фигура достигает нижней части игрового поля или касается другой фигуры, она останавливается, и игрок получает новую фигуру.
+    ==>Если горизонтальная линия полностью заполняется блоками, она исчезает, и игрок получает очки. Чем больше линий исчезает одновременно, тем больше очков игрок получает.
+    ==>Игра продолжается, пока фигуры могут падать и помещаться на игровом поле. Когда новая фигура не может поместиться на игровом поле, игра заканчивается.
+    ==>Игрок может приостановить игру, нажав кнопку "Пауза", и возобновить игру, нажав ее снова.
+    ==>Игрок может начать игру заново, нажав кнопку "Начать игру заново". Это очистит игровое поле и сбросит счет.
+   ==>Управление:
+- Стрелка влево: перемещение фигурки тетромино влево.
+- Стрелка вправо: перемещение фигурки тетромино вправо.
+- Стрелка вверх : поворот фигурки тетромино на 90 градусов влево.
+- Стрелка вниз: ускорение падения фигурки тетромино.
+- Пробел: мнгновенное падение фигурки тетрамино.
+    Удачи и приятной игры!
+"""
+        QMessageBox.information(self, "Правила игры", rules)
+
+    def exitGame(self):
+        QApplication.quit()
+
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self, "Выход из игры", "Вы уверены, что хотите покинуть игру?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
 
 class Tetris(QMainWindow):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.player = QMediaPlayer()
+        self.currentSongIndex = -1
+        self.player.mediaStatusChanged.connect(self.handleMediaStatusChanged)
+        self.startTime = QTime.currentTime()  # Добавить эту строку
+
+
+    def handleMediaStatusChanged(self, status):
+        if status == QMediaPlayer.EndOfMedia:
+            self.playNextMusic()
 
     def initUI(self):
         self.tboard = Board(self)
@@ -21,10 +130,26 @@ class Tetris(QMainWindow):
         self.horizontalLayout_2 = QHBoxLayout()
         self.gridLayout_1 = QGridLayout(self.centralwidget)
 
+        # Главное меню
+        self.mainMenuButton = QPushButton("Главное меню", self.centralwidget)
+        self.mainMenuButton.setFont(QFont('Times New Roman', 18))
+        self.mainMenuButton.setStyleSheet("background-color: black; color: white;")
+        self.mainMenuButton.setFixedSize(300, 50)
+        self.gridLayout_1.addWidget(self.mainMenuButton)
+        self.mainMenuButton.clicked.connect(self.goToMainMenu)
+
+        # Музыка
+        self.musicButton = QPushButton("Включить музыку", self.centralwidget)
+        self.musicButton.setFont(QFont('Times New Roman', 18))
+        self.musicButton.setStyleSheet("background-color: black; color: white;")
+        self.musicButton.setFixedSize(300, 50)
+        self.musicButton.clicked.connect(self.toggleMusic)
+        self.gridLayout_1.addWidget(self.musicButton)
+
         # Создаем кнопку "Пауза" и устанавливаем ее размеры и шрифт. Также соединяем ее с методом pause класса Board
         self.pausebutton = QPushButton("Пауза", self.centralwidget)
         self.pausebutton.setFont(QFont('Times New Roman', 18))
-        self.pausebutton.setStyleSheet("background-color: white; color: black;")
+        self.pausebutton.setStyleSheet("background-color: black; color: white;")
         self.pausebutton.setFixedSize(300, 50)
         self.pausebutton.clicked.connect(self.tboard.pause)
         self.gridLayout_1.addWidget(self.pausebutton)
@@ -32,7 +157,7 @@ class Tetris(QMainWindow):
         # Создаем кнопку "Начать игру заново" и устанавливаем ее размеры и шрифт. Также соединяем ее с методом restart_game класса Board
         self.button1 = QPushButton("Начать игру заново", self.centralwidget)
         self.button1.setFont(QFont('Times New Roman', 18))
-        self.button1.setStyleSheet("background-color: white; color: black;")
+        self.button1.setStyleSheet("background-color: black; color: white;")
         self.button1.setFixedSize(300, 50)
         self.gridLayout_1.addWidget(self.button1)
         self.button1.clicked.connect(self.tboard.restart_game)
@@ -44,7 +169,7 @@ class Tetris(QMainWindow):
         self.gridLayout.addLayout(self.horizontalLayout_2, 2, 0, 1, 1)
 
         # Устанавливаем фон центрального виджета и устанавливаем его в качестве главного виджета
-        self.centralwidget.setStyleSheet("background-color: lavender;")
+        self.centralwidget.setStyleSheet("background-image: url(задний фон.png);")
         self.centralwidget.setLayout(self.gridLayout)
         self.setCentralWidget(self.centralwidget)
 
@@ -56,18 +181,63 @@ class Tetris(QMainWindow):
         # Запускаем игру, устанавливаем размеры окна, устанавливаем окно по центру экрана, устанавливаем заголовок окна и отображаем его
         self.tboard.start()
         self.resize(700, 730)
+        self.setMaximumSize(1000, 1000)
         self.center()
         self.setWindowTitle('Тетрис')
         self.show()
 
+    def playMusic(self):
+        self.playNextMusic()  
+        self.currentSongIndex = 0  
+
+    def stopMusic(self):
+        self.player.stop()
+
+    def playNextMusic(self):
+        playlist = [
+            "трек 1.mp3",
+            "трек 2.mp3",
+            "трек 3.mp3",
+            "трек 4.mp3",
+            "трек 5.mp3",
+            "трек 6.mp3",
+            "трек 7.mp3",
+        ]
+        random.shuffle(playlist)
+
+        self.currentSongIndex += 1
+        if self.currentSongIndex >= len(playlist):
+            self.currentSongIndex = 0
+
+        song = playlist[self.currentSongIndex]
+        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(song)))
+        self.player.play()
+
+    def toggleMusic(self):
+        if self.player.state() == QMediaPlayer.PlayingState:
+            self.stopMusic()
+            self.musicButton.setText("Включить музыку")
+            Board.isMusicEnabled = False
+        else:
+            self.playMusic()
+            self.musicButton.setText("Выключить музыку")
+            Board.isMusicEnabled = True
+
     # Функция для обработки события закрытия окна игры
     def closeEvent(self, event):
-        reply = QMessageBox.question(self, 'Выход из игры', 'Вы точно хотите покинуть игру?',
+        reply = QMessageBox.question(self, 'Выход из игры', 'Вы уверены, что хотите покинуть игру?',
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
         if reply == QMessageBox.Yes:
             event.accept()
         else:
             event.ignore()
+
+    def goToMainMenu(self):
+        self.stopMusic()  
+        self.hide()  
+        self.mainMenu = MainMenu()  
+        self.mainMenu.show()  # Отображаем главное меню
 
     # Функция для центрирования окна игры на экране
     def center(self):
@@ -78,13 +248,17 @@ class Tetris(QMainWindow):
 
 class Board(QFrame):
     msg2Statusbar = pyqtSignal(str)
-    BoardWidth = 10 # Клеток в ширину
-    BoardHeight = 20 # Клеток в высоту
-    Speed = 500 # Начальная скорость падения фигур
+    isMusicEnabled = False
+    BoardWidth = 10  # Клеток в ширину
+    BoardHeight = 20  # Клеток в высоту
+    Speed = 700  # Начальная скорость падения фигур
+    colors = [QColor(0, 0, 0), QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255), QColor(255, 255, 0),
+              QColor(255, 0, 255), QColor(0, 255, 255), QColor(192, 192, 192)]
 
     def __init__(self, parent):
         super().__init__(parent)
         self.initBoard()
+        self.startTime = QTime()
 
     def initBoard(self):
         self.timer = QBasicTimer()
@@ -122,21 +296,26 @@ class Board(QFrame):
         self.isWaitingAfterLine = False
         self.numLinesRemoved = 0
         self.clearBoard()
-        self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}'))  # Счётчик
+        self.msg2Statusbar.emit(str(f'Счет:{self.numLinesRemoved}'))
         self.newPiece()
         self.timer.start(Board.Speed, self)
+        self.parent().startTime = QTime.currentTime()
+
 
     # Функция для паузы игры
     def pause(self):
         if not self.isStarted:
             return
+
         self.isPaused = not self.isPaused
         if self.isPaused:
             self.timer.stop()
-            self.msg2Statusbar.emit(str(f'Пауза. Счёт:{self.numLinesRemoved}'))
+            self.msg2Statusbar.emit(str(f'Пауза. Счёт:{self.numLinesRemoved} ', ))
+            self.sender().setText("Возобновить игру")
         else:
             self.timer.start(Board.Speed, self)
             self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}'))
+            self.sender().setText("Пауза")
         self.update()
 
     # Функция для перезапуска игры
@@ -151,7 +330,7 @@ class Board(QFrame):
         painter = QPainter(self)
         rect = self.contentsRect()
         # Отрисовываем фон
-        background = QPixmap("123.png")  # путь к файлу изображения
+        background = QPixmap("игровое поле.png")  
         painter.drawPixmap(rect, background)
         # Отрисовываем сетку
         boardTop = rect.bottom() - Board.BoardHeight * self.squareHeight()
@@ -161,6 +340,17 @@ class Board(QFrame):
         for j in range(Board.BoardWidth + 1):
             painter.drawLine(rect.left() + j * self.squareWidth(), boardTop, rect.left() + j * self.squareWidth(),
                              rect.bottom())
+        for i in range(Board.BoardHeight):
+            for j in range(Board.BoardWidth):
+                shape = self.shapeAt(j, Board.BoardHeight - i - 1)
+                if shape != Tetrominoe.NoShape:
+                    self.drawSquare(painter, rect.left() + j * self.squareWidth(), boardTop + i * self.squareHeight(),
+                                    shape)
+                elif not self.isStarted:
+                    color = self.colors[random.randint(0, len(self.colors) - 1)]
+                    painter.fillRect(rect.left() + j * self.squareWidth(), boardTop + i * self.squareHeight(),
+                                     self.squareWidth(), self.squareHeight(), color)
+
         # Отрисовываем фигуры и текущую фигуру
         for i in range(Board.BoardHeight):
             for j in range(Board.BoardWidth):
@@ -179,7 +369,7 @@ class Board(QFrame):
 
     # Обработчик событий нажатия клавиш на клавиатуре
     def keyPressEvent(self, event):
-        if not self.isStarted or self.curPiece.shape() == Tetrominoe.NoShape:
+        if not self.isStarted or self.curPiece.shape() == Tetrominoe.NoShape or self.isPaused:
             super(Board, self).keyPressEvent(event)
             return
         key = event.key()
@@ -204,11 +394,11 @@ class Board(QFrame):
                 self.newPiece()
             else:
                 self.oneLineDown()
-            current_speed = Board.Speed - 10 * (
-                        self.numLinesRemoved // 1)  # увеличиваем скорость каждый раз на 10 при увеличении счёта на 1
-            self.timer.start(current_speed, self)
-        else:
-            super(Board, self).timerEvent(event)
+
+            elapsed = self.parent().startTime.secsTo(QTime.currentTime())  
+            minutes = elapsed // 60
+            seconds = elapsed % 60
+            self.msg2Statusbar.emit( f'Счет:{self.numLinesRemoved}.                             Время:{minutes:02d}:{seconds:02d}')  # Обновить строку статуса
 
     # Функция очищает игровое поле и устанавливает все клетки в значение 0
     def clearBoard(self):
@@ -265,6 +455,8 @@ class Board(QFrame):
             self.isWaitingAfterLine = True
             self.curPiece.setShape(Tetrominoe.NoShape)
             self.update()
+            if Board.isMusicEnabled:  
+                QSound.play("взрыв.wav")
 
     # Функция создает новую фигуру
     def newPiece(self):
@@ -295,19 +487,27 @@ class Board(QFrame):
 
     # Функция вызывается для рисования одного квадрата игрового поля. Он принимает координаты квадрата и его форму, и заливает квадрат цветом.
     def drawSquare(self, painter, x, y, shape):
-        colorTable = [0x000000, 0xCC6666, 0x66CC66, 0x6666CC,
-                      0xCCCC66, 0xCC66CC, 0x66CCCC, 0xDAAA00]
-        color = QColor(colorTable[shape])
-        painter.fillRect(x + 1, y + 1, self.squareWidth() - 2,
-                         self.squareHeight() - 2, color)
+        colors = [
+            QColor(0, 0, 0),  # Черный
+            QColor(255, 0, 0),  # Красный
+            QColor(0, 255, 0),  # Зеленый
+            QColor(0, 0, 255),  # Синий
+            QColor(255, 255, 0),  # Желтый
+            QColor(255, 0, 255),  # Фиолетовый
+            QColor(0, 255, 255),  # Голубой
+            QColor(255, 255, 255)  # Белый
+        ]
+
+        color = colors[shape]
+        painter.fillRect(x + 1, y + 1, self.squareWidth() - 2, self.squareHeight() - 2, color)
         painter.setPen(color.lighter())
         painter.drawLine(x, y + self.squareHeight() - 1, x, y)
         painter.drawLine(x, y, x + self.squareWidth() - 1, y)
+
         painter.setPen(color.darker())
-        painter.drawLine(x + 1, y + self.squareHeight() - 1,
-                         x + self.squareWidth() - 1, y + self.squareHeight() - 1)
-        painter.drawLine(x + self.squareWidth() - 1,
-                         y + self.squareHeight() - 1, x + self.squareWidth() - 1, y + 1)
+        painter.drawLine(x + 1, y + self.squareHeight() - 1, x + self.squareWidth() - 1, y + self.squareHeight() - 1)
+        painter.drawLine(x + self.squareWidth() - 1, y + self.squareHeight() - 1, x + self.squareWidth() - 1, y + 1)
+
 
 # Перечисление  для форм тетромино, которые могут принимать значения от 0 до 7.
 class Tetrominoe(object):
@@ -319,6 +519,7 @@ class Tetrominoe(object):
     SquareShape = 5
     LShape = 6
     MirroredLShape = 7
+
 
 # Фигуры
 class Shape(object):
@@ -412,8 +613,11 @@ class Shape(object):
             result.setY(i, self.x(i))
         return result
 
-# Запуск игры
-if __name__ == '__main__':
-    app = QApplication([])
-    tetris = Tetris()
+
+def main():
+    app = QApplication(sys.argv)
+    main_menu = MainMenu()
     sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    main()
