@@ -17,7 +17,7 @@ class MainMenu(QMainWindow):
 
         # Создание QLabel для фона с изображением
         self.backgroundLabel = QLabel(self.centralwidget)
-        pixmap = QPixmap("главное меню.png") 
+        pixmap = QPixmap("главное меню.png")  # Укажите путь к вашему изображению
         self.backgroundLabel.setPixmap(pixmap)
         self.backgroundLabel.setScaledContents(True)
         self.gridLayout.addWidget(self.backgroundLabel, 0, 0, 10, 1)
@@ -57,7 +57,7 @@ class MainMenu(QMainWindow):
         self.setWindowTitle('Тетрис')
         self.resize(400, 300)
         self.show()
-        self.center()  
+        self.center()  # Перемещение окна по центру экрана
 
     def center(self):
         frame_geometry = self.frameGeometry()
@@ -111,7 +111,8 @@ class Tetris(QMainWindow):
         self.player = QMediaPlayer()
         self.currentSongIndex = -1
         self.player.mediaStatusChanged.connect(self.handleMediaStatusChanged)
-        self.startTime = QTime.currentTime()  # Добавить эту строку
+        self.startTime = QTime.currentTime()
+        self.pauseTime = QTime()
 
 
     def handleMediaStatusChanged(self, status):
@@ -187,13 +188,14 @@ class Tetris(QMainWindow):
         self.show()
 
     def playMusic(self):
-        self.playNextMusic()  
-        self.currentSongIndex = 0  
+        self.playNextMusic()  # Воспроизводим первую песню
+        self.currentSongIndex = 0  # Устанавливаем индекс текущей песни на 0
 
     def stopMusic(self):
         self.player.stop()
 
     def playNextMusic(self):
+        # Список песен
         playlist = [
             "трек 1.mp3",
             "трек 2.mp3",
@@ -203,6 +205,8 @@ class Tetris(QMainWindow):
             "трек 6.mp3",
             "трек 7.mp3",
         ]
+
+        # Перемешиваем список песен
         random.shuffle(playlist)
 
         self.currentSongIndex += 1
@@ -234,9 +238,9 @@ class Tetris(QMainWindow):
             event.ignore()
 
     def goToMainMenu(self):
-        self.stopMusic()  
-        self.hide()  
-        self.mainMenu = MainMenu()  
+        self.stopMusic()  # Остановка музыки
+        self.hide()  # Скрываем текущее окно
+        self.mainMenu = MainMenu()  # Создаем экземпляр класса главного меню
         self.mainMenu.show()  # Отображаем главное меню
 
     # Функция для центрирования окна игры на экране
@@ -296,7 +300,7 @@ class Board(QFrame):
         self.isWaitingAfterLine = False
         self.numLinesRemoved = 0
         self.clearBoard()
-        self.msg2Statusbar.emit(str(f'Счет:{self.numLinesRemoved}'))
+        self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}.'))
         self.newPiece()
         self.timer.start(Board.Speed, self)
         self.parent().startTime = QTime.currentTime()
@@ -306,15 +310,17 @@ class Board(QFrame):
     def pause(self):
         if not self.isStarted:
             return
-
         self.isPaused = not self.isPaused
         if self.isPaused:
             self.timer.stop()
-            self.msg2Statusbar.emit(str(f'Пауза. Счёт:{self.numLinesRemoved} ', ))
+            self.msg2Statusbar.emit(f'Счёт:{self.numLinesRemoved}. Время:{self.data_string}. Пауза.')
             self.sender().setText("Возобновить игру")
+            self.parent().pauseTime = QTime.currentTime()
         else:
             self.timer.start(Board.Speed, self)
-            self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}'))
+            elapsed = self.parent().pauseTime.msecsTo(QTime.currentTime())
+            self.parent().startTime = self.parent().startTime.addMSecs(elapsed)
+            self.msg2Statusbar.emit(f'Счёт: {self.numLinesRemoved}. Время:{self.data_string}.')
             self.sender().setText("Пауза")
         self.update()
 
@@ -322,7 +328,7 @@ class Board(QFrame):
     def restart_game(self):
         self.isStarted = False
         self.numLinesRemoved = 0
-        self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}'))
+        self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}. Время:{self.data_string}.'))
         self.initBoard()  # Очистить игровое поле и установить начальные значения
         self.start()
 
@@ -330,7 +336,7 @@ class Board(QFrame):
         painter = QPainter(self)
         rect = self.contentsRect()
         # Отрисовываем фон
-        background = QPixmap("игровое поле.png")  
+        background = QPixmap("игровое поле.png")  # путь к файлу изображения
         painter.drawPixmap(rect, background)
         # Отрисовываем сетку
         boardTop = rect.bottom() - Board.BoardHeight * self.squareHeight()
@@ -394,11 +400,15 @@ class Board(QFrame):
                 self.newPiece()
             else:
                 self.oneLineDown()
+            if self.isPaused:
+                return  # Ничего не делать, если игра на паузе
+            else:
+                super(Board, self).timerEvent(event)
 
-            elapsed = self.parent().startTime.secsTo(QTime.currentTime())  
-            minutes = elapsed // 60
-            seconds = elapsed % 60
-            self.msg2Statusbar.emit( f'Счет:{self.numLinesRemoved}.                             Время:{minutes:02d}:{seconds:02d}')  # Обновить строку статуса
+            elapsed = self.parent().startTime.secsTo(QTime.currentTime())
+            minutes, seconds = divmod(elapsed, 60)
+            self.data_string = f"{minutes}:{seconds:02d}"
+            self.msg2Statusbar.emit( f'Счёт:{self.numLinesRemoved}. Время:{self.data_string}.')
 
     # Функция очищает игровое поле и устанавливает все клетки в значение 0
     def clearBoard(self):
@@ -451,33 +461,51 @@ class Board(QFrame):
         numFullLines = numFullLines + len(rowsToRemove)
         if numFullLines > 0:
             self.numLinesRemoved = self.numLinesRemoved + numFullLines
-            self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}'))
+            self.msg2Statusbar.emit(str(f'Счёт:{self.numLinesRemoved}. Время:{self.data_string}.'))
             self.isWaitingAfterLine = True
             self.curPiece.setShape(Tetrominoe.NoShape)
             self.update()
-            if Board.isMusicEnabled:  
-                QSound.play("взрыв.wav")
+            if Board.isMusicEnabled:  # проверка флага isMusicEnabled
+                QSound.play("взрыв.wav")\
 
     # Функция создает новую фигуру
     def newPiece(self):
         self.curPiece = Shape()
         self.curPiece.setRandomShape()
-        self.curX = Board.BoardWidth // 2 + 1
+        self.curX = Board.BoardWidth // 2
         self.curY = Board.BoardHeight - 1 + self.curPiece.minY()
         if not self.tryMove(self.curPiece, self.curX, self.curY):
             self.curPiece.setShape(Tetrominoe.NoShape)
             self.timer.stop()
             self.isStarted = False
-            self.msg2Statusbar.emit((str(f'Счёт:{self.numLinesRemoved}''. Игра окончена.')))
+            elapsed = self.parent().startTime.secsTo(QTime.currentTime())
+            minutes, seconds = divmod(elapsed, 60)
+            self.data_string = f"{minutes}:{seconds:02d}"
+            self.msg2Statusbar.emit(f"Счёт: {self.numLinesRemoved}. Время: {self.data_string}. Игра окончена.")
+
+            # Дополнительная проверка на окончание игры
+            if not any(self.shapeAt(j, Board.BoardHeight - 1) != Tetrominoe.NoShape for j in range(Board.BoardWidth)):
+                self.msg2Statusbar.emit(f"Счёт: {self.numLinesRemoved}. Время: {self.data_string}. Игра окончена.")
+
+        self.update()
+
+    # Функция проверяет, является ли игра оконченной
+    def isGameOver(self):
+        # Проверяем клетки в верхней строке доски
+        for i in range(Board.BoardWidth):
+            if self.shapeAt(i, 0) != Tetrominoe.NoShape:
+                return True  # Клетка занята, игра окончена
+        return False  # Есть свободные клетки, игра не окончена
+
 
     # Функция проверяет возможность перемещения фигуры в новое место на доске
     def tryMove(self, newPiece, newX, newY):
         for i in range(4):
             x = newX + newPiece.x(i)
             y = newY - newPiece.y(i)
-            if x < 0 or x >= Board.BoardWidth or y < 0 or y >= Board.BoardHeight:
+            if x < 0 or x >= Board.BoardWidth or y < 0 or y >= Board.BoardHeight:  # Проверка на выход за границы доски
                 return False
-            if self.shapeAt(x, y) != Tetrominoe.NoShape:
+            if self.shapeAt(x, y) != Tetrominoe.NoShape:  # Проверка на перекрытие с другой фигурой
                 return False
         self.curPiece = newPiece
         self.curX = newX
@@ -612,7 +640,6 @@ class Shape(object):
             result.setX(i, -self.y(i))
             result.setY(i, self.x(i))
         return result
-
 
 def main():
     app = QApplication(sys.argv)
